@@ -18,6 +18,26 @@ class BookController {
                 });
             }
 
+            // Validate and convert numeric fields
+            const publishedYear = parseInt(bookData.publishedYear);
+            const initialStock = parseInt(bookData.initialStock);
+            const price = parseFloat(bookData.price);
+
+            if (isNaN(publishedYear) || publishedYear <= 0) {
+                return res.status(400).json({ error: 'Invalid publishedYear value' });
+            }
+            if (isNaN(initialStock) || initialStock < 0) {
+                return res.status(400).json({ error: 'Invalid initialStock value' });
+            }
+            if (isNaN(price) || price < 0) {
+                return res.status(400).json({ error: 'Invalid price value' });
+            }
+
+            // Update the values in bookData
+            bookData.publishedYear = publishedYear;
+            bookData.initialStock = initialStock;
+            bookData.price = price;
+
             // Handle the uploaded file
             if (req.file) {
                 const imageUrl = `/uploads/${req.file.filename}`;
@@ -64,9 +84,9 @@ class BookController {
     async updateStock(req: Request, res: Response) {
         try {
             const bookId = req.params.id;
-            const { quantity } = req.body;
+            const quantity = parseInt(req.body.quantity);
 
-            if (typeof quantity !== 'number' || quantity < 0) {
+            if (isNaN(quantity) || quantity < 0) {
                 return res.status(400).json({ error: 'Invalid quantity value' });
             }
 
@@ -83,7 +103,81 @@ class BookController {
         }
     }
 
-    // DELETE: Delete a book (Admin only)
+    // PUT: Update a book (Admin only)
+    async updateBook(req: Request, res: Response) {
+        try {
+            const bookId = req.params.id;
+            const updateData = { ...req.body };
+
+            // Validate the update data
+            const allowedFields = [
+                'title', 'description', 'author', 'category',
+                'isbn', 'publisher', 'publishedYear', 'price',
+                'imageUrl', 'stock', 'quantity'
+            ];
+            
+            const invalidFields = Object.keys(updateData).filter(
+                field => !allowedFields.includes(field)
+            );
+
+            if (invalidFields.length > 0) {
+                return res.status(400).json({ 
+                    error: `Invalid fields: ${invalidFields.join(', ')}` 
+                });
+            }
+
+            // Handle the uploaded file
+            if (req.file) {
+                const imageUrl = `/uploads/${req.file.filename}`;
+                updateData.imageUrl = imageUrl;
+            }
+
+            // Validate and convert numeric fields if present
+            if ('publishedYear' in updateData) {
+                const publishedYear = parseInt(updateData.publishedYear);
+                if (isNaN(publishedYear) || publishedYear <= 0) {
+                    return res.status(400).json({ error: 'Invalid publishedYear value' });
+                }
+                updateData.publishedYear = publishedYear;
+            }
+
+            if ('price' in updateData) {
+                const price = parseFloat(updateData.price);
+                if (isNaN(price) || price < 0) {
+                    return res.status(400).json({ error: 'Invalid price value' });
+                }
+                updateData.price = price;
+            }
+
+            if ('stock' in updateData) {
+                const stock = parseInt(updateData.stock);
+                if (isNaN(stock) || stock < 0) {
+                    return res.status(400).json({ error: 'Invalid stock value' });
+                }
+                updateData.stock = stock;
+            }
+
+            if ('quantity' in updateData) {
+                const quantity = parseInt(updateData.quantity);
+                if (isNaN(quantity) || quantity < 0) {
+                    return res.status(400).json({ error: 'Invalid quantity value' });
+                }
+                updateData.quantity = quantity;
+            }
+
+            const updatedBook = await BookService.updateBook(bookId, updateData);
+            
+            if (updatedBook) {
+                res.status(200).json(updatedBook);
+            } else {
+                res.status(404).json({ error: 'Book not found' });
+            }
+        } catch (error) {
+            console.error('Error updating book:', error);
+            res.status(500).json({ error: 'Failed to update book' });
+        }
+    }
+
     async deleteBook(req: Request, res: Response) {
         try {
             const bookId = req.params.id;

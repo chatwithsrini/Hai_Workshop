@@ -1,6 +1,6 @@
 import { ObjectId } from 'mongodb';
 import { getDB } from '../config/db';
-import { IBook, IBookStock, ICreateBookDTO, IUpdateStockDTO, IBookWithStock } from '../models/IBook';
+import { IBook, IBookStock, ICreateBookDTO, IUpdateStockDTO, IUpdateBookDTO, IBookWithStock } from '../models/IBook';
 
 class BookService {
     async createBook(bookData: ICreateBookDTO): Promise<IBookWithStock> {
@@ -108,45 +108,132 @@ class BookService {
         };
     }
 
-    async updateStock(bookId: string, { quantity }: IUpdateStockDTO): Promise<IBookWithStock | null> {
-        const db = getDB();
-        const stockCollection = db.collection('bookStocks');
+    async updateBook(bookId: string, updateData: IUpdateBookDTO): Promise<IBookWithStock | null> {
+        try {
+            const db = getDB();
+            const booksCollection = db.collection('books');
+            const stockCollection = db.collection('bookStocks');
 
-        const result = await stockCollection.findOneAndUpdate(
-            { bookId },
-            { 
-                $set: { 
-                    quantity,
-                    dateUpdated: new Date()
+            // Ensure valid ObjectId
+            if (!ObjectId.isValid(bookId)) {
+                return null;
+            }
+
+            // Separate book fields from stock fields
+            const bookUpdate: Partial<IBook> & { dateUpdated: Date } = { 
+                dateUpdated: new Date() 
+            };
+            const stockUpdate: { price?: number; quantity?: number; dateUpdated: Date } = {
+                dateUpdated: new Date()
+            };
+
+            // Update book fields if they exist in updateData
+            const bookFields = ['title', 'description', 'author', 'category', 'imageUrl', 'isbn', 'publisher', 'publishedYear'] as const;
+            type BookField = typeof bookFields[number];
+            
+            for (const field of bookFields) {
+                if (field in updateData) {
+                    (bookUpdate as any)[field] = updateData[field as BookField];
                 }
-            },
-            { returnDocument: 'after' }
-        );
+            }
 
-        if (!result) return null;
+            // Update stock fields if they exist in updateData
+            if ('price' in updateData) {
+                stockUpdate.price = updateData.price;
+            }
+            if ('stock' in updateData || 'quantity' in updateData) {
+                stockUpdate.quantity = updateData.stock || updateData.quantity;
+            }
 
-        return this.getBookById(bookId);
+            // Update book details
+            const bookResult = await booksCollection.findOneAndUpdate(
+                { _id: new ObjectId(bookId) },
+                { $set: bookUpdate },
+                { returnDocument: 'after' }
+            );
+
+            if (!bookResult) return null;
+
+            // Update stock if price or quantity changed
+            if (stockUpdate.price !== undefined || stockUpdate.quantity !== undefined) {
+                const stockResult = await stockCollection.findOneAndUpdate(
+                    { bookId: bookId },
+                    { $set: stockUpdate },
+                    { returnDocument: 'after', upsert: true }
+                );
+                
+                if (!stockResult) return null;
+            }
+
+            // Fetch fresh data after both updates are complete
+            const updatedBook = await this.getBookById(bookId);
+            return updatedBook;
+        } catch (error) {
+            console.error('Error updating book:', error);
+            return null;
+        }
+    }
+
+    async updateStock(bookId: string, { quantity }: IUpdateStockDTO): Promise<IBookWithStock | null> {
+        try {
+            const db = getDB();
+            const stockCollection = db.collection('bookStocks');
+
+            if (!ObjectId.isValid(bookId)) {
+                return null;
+            }
+
+            const result = await stockCollection.findOneAndUpdate(
+                { bookId },
+                { 
+                    $set: { 
+                        quantity,
+                        dateUpdated: new Date()
+                    }
+                },
+                { returnDocument: 'after' }
+            );
+
+            if (!result) return null;
+
+            return this.getBookById(bookId);
+        } catch (error) {
+            console.error('Error updating stock:', error);
+            return null;
+        }
     }
 
     async deleteBook(bookId: string): Promise<boolean> {
-        const db = getDB();
-        const booksCollection = db.collection('books');
-        const stockCollection = db.collection('bookStocks');
+        try {
+            const db = getDB();
+            const booksCollection = db.collection('books');
+            const stockCollection = db.collection('bookStocks');
 
-        const bookResult = await booksCollection.deleteOne({ _id: new ObjectId(bookId) });
-        await stockCollection.deleteOne({ bookId });
+            if (!ObjectId.isValid(bookId)) {
+                return false;
+            }
 
-        return bookResult.deletedCount === 1;
+            const bookResult = await booksCollection.deleteOne({ _id: new ObjectId(bookId) });
+            await stockCollection.deleteOne({ bookId });
+
+            return bookResult.deletedCount === 1;
+        } catch (error) {
+            console.error('Error deleting book:', error);
+            return false;
+        }
     }
 
-    // Helper method to clear all books (for resetting data)
     async clearAllBooks(): Promise<void> {
-        const db = getDB();
-        await db.collection('books').deleteMany({});
-        await db.collection('bookStocks').deleteMany({});
+        try {
+            const db = getDB();
+            await db.collection('books').deleteMany({});
+            await db.collection('bookStocks').deleteMany({});
+        } catch (error) {
+            console.error('Error clearing books:', error);
+            throw error;
+        }
     }
 
-    // Helper method to add initial science books
     async addInitialBooks(): Promise<void> {
         const books: ICreateBookDTO[] = [
             {

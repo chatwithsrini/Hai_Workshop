@@ -16,6 +16,7 @@ router.post('/books',
     upload.single('image'), // Handle single image upload
     BookController.createBook
 );
+router.put('/books/:id', authenticateToken, isAdmin, upload.single('image'), BookController.updateBook);
 router.put('/books/:id/stock', authenticateToken, isAdmin, BookController.updateStock);
 router.delete('/books/:id', authenticateToken, isAdmin, BookController.deleteBook);
 

@@ -34,6 +34,20 @@ export interface ICreateBookDTO {
     price: number;
 }
 
+export interface IUpdateBookDTO {
+    title?: string;
+    description?: string;
+    author?: string;
+    category?: 'physics' | 'chemistry' | 'biology' | 'mathematics';
+    imageUrl?: string;
+    isbn?: string;
+    publisher?: string;
+    publishedYear?: number;
+    price?: number;
+    stock?: number;
+    quantity?: number;
+}
+
 export interface IUpdateStockDTO {
     quantity: number;
 }
