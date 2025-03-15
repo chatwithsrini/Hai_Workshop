@@ -1,0 +1,1 @@
+export const fallbackImage = 'https://via.placeholder.com/300x200?text=No+Image';

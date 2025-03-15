@@ -1,0 +1,15 @@
+### Create a New User
+POST http://localhost:3001/api/users/create
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "testuser@example.com",
+  "password": "securepassword123",
+  "phoneNumber": "1234567890",
+  "dateCreated": "{{now}}",
+  "dateUpdated": "{{now}}"
+}
+
+### Retrieve a User by ID
+GET http://localhost:3001/api/users/{{userId}}

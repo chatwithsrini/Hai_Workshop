@@ -1,0 +1,17 @@
+### Create a New Enquiry
+POST http://localhost:3001/api/enquiries/create
+Content-Type: application/json
+
+{
+  "enquiryFor": "Appendix Surgery",
+  "name": "haruki murakami",
+  "contact": "harukimurakami@japan.com",
+  "dateCreated": "{{now}}",
+  "dateUpdated": "{{now}}"
+}
+
+### Retrieve All Enquiries
+GET http://localhost:3001/api/enquiries
+
+### Retrieve an Enquiry by ID
+GET http://localhost:3001/api/enquiries/66c6e2e75defb81e55743018
